@@ -21,6 +21,10 @@ export default function Home() {
   const [errorHalaman, setErrorHalaman] = useState("");
   const namaRef = useRef(null);
 
+  const [modeSelect, setModeSelect] = useState(false);
+  const [terpilih, setTerpilih] = useState([]);
+  const [menghapus, setMenghapus] = useState(false);
+
   async function muat() {
     const { data, error } = await supabase
       .from("barang")
@@ -35,7 +39,6 @@ export default function Home() {
     muat();
   }, []);
 
-  // Tutup modal dengan tombol Escape, kunci scroll halaman, fokus ke nama barang
   useEffect(() => {
     if (!modalBuka) return;
     const onKey = (e) => e.key === "Escape" && tutupModal();
@@ -52,6 +55,45 @@ export default function Home() {
     () => data.filter((b) => b.nama_barang.toLowerCase().includes(cari.toLowerCase())),
     [data, cari]
   );
+
+  const idTerpilih = useMemo(
+    () => tampil.filter((b) => terpilih.includes(b.id)).map((b) => b.id),
+    [tampil, terpilih]
+  );
+  const semuaTerpilih = tampil.length > 0 && idTerpilih.length === tampil.length;
+
+  function mulaiSelect() {
+    setModeSelect(true);
+    setTerpilih([]);
+  }
+
+  function batalSelect() {
+    setModeSelect(false);
+    setTerpilih([]);
+  }
+
+  function toggleBarang(id) {
+    setTerpilih((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function pilihSemua() {
+    setTerpilih(semuaTerpilih ? [] : tampil.map((b) => b.id));
+  }
+
+  async function hapusTerpilih() {
+    if (idTerpilih.length === 0) return;
+    if (!confirm(`Hapus ${idTerpilih.length} barang terpilih?`)) return;
+    setErrorHalaman("");
+    setMenghapus(true);
+    const { error } = await supabase.from("barang").delete().in("id", idTerpilih);
+    setMenghapus(false);
+    if (error) {
+      setErrorHalaman("Gagal menghapus: " + error.message);
+      return;
+    }
+    batalSelect();
+    muat();
+  }
 
   function bukaTambah() {
     setEditId(null);
@@ -143,10 +185,59 @@ export default function Home() {
             />
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3">
+            {!modeSelect ? (
+              <button
+                onClick={mulaiSelect}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M8 12l3 3 5-6" />
+                </svg>
+                Pilih
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={batalSelect}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={pilihSemua}
+                  disabled={tampil.length === 0}
+                  className="rounded-md border border-teal-700 bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-700 hover:text-white disabled:opacity-50"
+                >
+                  {semuaTerpilih ? "Batal pilih semua" : "Pilih semua"}
+                </button>
+                <button
+                  onClick={hapusTerpilih}
+                  disabled={idTerpilih.length === 0 || menghapus}
+                  className="rounded-md border border-red-600 bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {menghapus ? "Menghapus..." : `Hapus terpilih (${idTerpilih.length})`}
+                </button>
+              </>
+            )}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
+                  {modeSelect && (
+                    <th className="w-10 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={semuaTerpilih}
+                        onChange={pilihSemua}
+                        aria-label="Pilih semua barang"
+                        className="h-4 w-4 accent-teal-700"
+                      />
+                    </th>
+                  )}
                   <th className="px-4 py-3 font-medium">Nama barang</th>
                   <th className="px-4 py-3 text-right font-medium">Harga beli</th>
                   <th className="px-4 py-3 text-right font-medium">Harga jual</th>
@@ -157,13 +248,13 @@ export default function Home() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={modeSelect ? 6 : 5} className="px-4 py-8 text-center text-slate-500">
                       Memuat data...
                     </td>
                   </tr>
                 ) : tampil.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={modeSelect ? 6 : 5} className="px-4 py-8 text-center text-slate-500">
                       {cari
                         ? "Tidak ada barang yang cocok."
                         : "Belum ada barang. Tekan tombol + di pojok kanan bawah."}
@@ -171,24 +262,52 @@ export default function Home() {
                   </tr>
                 ) : (
                   tampil.map((b) => (
-                    <tr key={b.id} className="hover:bg-slate-50">
+                    <tr
+                      key={b.id}
+                      className={"hover:bg-slate-50 " + (terpilih.includes(b.id) ? "bg-teal-50/60" : "")}
+                    >
+                      {modeSelect && (
+                        <td className="w-10 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={terpilih.includes(b.id)}
+                            onChange={() => toggleBarang(b.id)}
+                            aria-label={`Pilih ${b.nama_barang}`}
+                            className="h-4 w-4 accent-teal-700"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3 font-medium">{b.nama_barang}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{rupiah(b.harga_beli)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{rupiah(b.harga_jual)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{rupiah(b.harga_grosir)}</td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => bukaEdit(b)}
-                          className="mr-3 font-medium text-teal-700 hover:underline"
-                        >
-                          Ubah
-                        </button>
-                        <button
-                          onClick={() => hapus(b)}
-                          className="font-medium text-red-600 hover:underline"
-                        >
-                          Hapus
-                        </button>
+                        {!modeSelect && (
+                          <div className="inline-flex gap-2">
+                            <button
+                              onClick={() => bukaEdit(b)}
+                              className="inline-flex items-center gap-1.5 rounded-md border border-teal-700 bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-700 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/40"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                              </svg>
+                              Ubah
+                            </button>
+                            <button
+                              onClick={() => hapus(b)}
+                              className="inline-flex items-center gap-1.5 rounded-md border border-red-600 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4h8v2" />
+                                <path d="M19 6l-1 14H6L5 6" />
+                                <path d="M10 11v5M14 11v5" />
+                              </svg>
+                              Hapus
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))

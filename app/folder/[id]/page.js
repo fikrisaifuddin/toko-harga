@@ -1,7 +1,9 @@
 "use client";
 
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import TombolTabel from "@/components/tomboltabel";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -355,6 +357,8 @@ export default function IsiFolder() {
           </div>
         </div>
       </div>
+
+      <TombolTabel />
 
       {/* Tombol melayang */}
       <button

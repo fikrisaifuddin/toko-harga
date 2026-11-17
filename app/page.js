@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import TombolTabel from "@/components/tomboltabel";
 import { supabase } from "@/lib/supabase";
 
 export default function DaftarFolder() {
@@ -182,6 +183,8 @@ export default function DaftarFolder() {
           </div>
         )}
       </div>
+
+      <TombolTabel />
 
       {/* Tombol melayang */}
       <button

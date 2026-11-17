@@ -64,8 +64,7 @@ export default function TombolTabel() {
     if (nilai.length === 4 && !memeriksa) periksa(nilai);
   }
 
-  const lewatiPin =
-  process.env.NEXT_PUBLIC_LEWATI_PIN === "true" && process.env.NODE_ENV !== "production";
+  const lewatiPin = process.env.NEXT_PUBLIC_LEWATI_PIN === "true";
 
   function klikTombol() {
     if (lewatiPin) router.push("/tabel");
